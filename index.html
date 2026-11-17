@@ -1,0 +1,2507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#dc2626" />
+  <title>MIV Mortality Android App</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #fff5f5;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .safe-bottom {
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.65rem);
+    }
+  </style>
+</head>
+<body class="bg-rose-50/70 min-h-screen flex flex-col">
+
+  <!-- ========================================================= -->
+  <!-- TOP ANDROID APP HEADER (LIGHT RED / CRIMSON THEME)         -->
+  <!-- ========================================================= -->
+  <header class="sticky top-0 z-30 bg-gradient-to-r from-red-600 via-red-600 to-rose-600 text-white shadow-md shadow-red-900/15">
+    <div class="max-w-lg mx-auto px-4 pt-3 pb-2.5">
+      <!-- Top Row: Brand + Quick Sync + Log Counter -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/25 flex items-center justify-center shrink-0 shadow-inner">
+            <span class="font-extrabold text-sm tracking-tight text-white">MIV</span>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-base font-extrabold tracking-tight leading-tight truncate">MIV Mortality</h1>
+            <p id="headerSubtitle" class="text-[11px] text-red-100 font-medium truncate">
+              Cycle 1 • 60-Day Broiler Batch
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- Dropbox Sync Status Pill + Force Refresh -->
+          <div class="flex items-center bg-white/15 border border-white/25 rounded-full overflow-hidden">
+            <button
+              id="dropboxStatusBtn"
+              type="button"
+              onclick="openDropboxModal()"
+              class="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold hover:bg-white/15 active:scale-95 transition"
+              title="Configure Dropbox API v2 Auto-Sync"
+            >
+              <span id="dropboxDot" class="w-2 h-2 rounded-full bg-amber-300"></span>
+              <span id="dropboxStatusText">Sync</span>
+            </button>
+            <button
+              id="forceSyncBtn"
+              type="button"
+              onclick="forceSyncNow(true)"
+              class="px-2 py-1.5 text-[11px] border-l border-white/20 hover:bg-white/20 active:scale-95 transition"
+              title="Force Pull & Sync Now"
+            >
+              <i id="forceSyncIcon" class="fa-solid fa-arrows-rotate"></i>
+            </button>
+          </div>
+
+          <!-- Log Counter Bell -->
+          <button
+            type="button"
+            onclick="switchMainView('logs')"
+            class="relative w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 border border-white/25 flex items-center justify-center active:scale-95 transition"
+            title="View Submitted Logs"
+          >
+            <i class="fa-solid fa-bell text-xs"></i>
+            <span
+              id="headerLogBadge"
+              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-white text-red-600 text-[10px] font-extrabold flex items-center justify-center shadow"
+            >0</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mode Switcher Bar: Farm Worker (User) vs Farm Manager (Admin) -->
+      <div class="mt-2.5 bg-red-950/25 p-1 rounded-2xl grid grid-cols-2 gap-1 border border-white/15">
+        <button
+          id="roleUserBtn"
+          type="button"
+          onclick="switchRole('user')"
+          class="py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-white text-red-600 shadow-sm"
+        >
+          <i class="fa-solid fa-user-check"></i>
+          <span>Farm Worker (User)</span>
+        </button>
+        <button
+          id="roleAdminBtn"
+          type="button"
+          onclick="requestAdminMode()"
+          class="py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition text-red-100 hover:text-white"
+        >
+          <i id="adminRoleLockIcon" class="fa-solid fa-lock"></i>
+          <span>Farm Manager (Admin)</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================= -->
+  <!-- MAIN CONTENT CONTAINER                                    -->
+  <!-- ========================================================= -->
+  <main class="flex-1 max-w-lg w-full mx-auto px-4 pt-4 pb-28 space-y-4">
+
+    <!-- ======================================================= -->
+    <!-- USER VIEW 1: DAILY MORTALITY INPUT (JOTFORM STYLE)      -->
+    <!-- ======================================================= -->
+    <section id="view-input" class="space-y-4 animate-pop">
+      <div class="bg-white rounded-3xl shadow-sm border border-red-100 overflow-hidden">
+        <!-- Jotform Top Accent Banner -->
+        <div class="bg-gradient-to-r from-red-50 to-rose-50 px-5 py-4 border-b border-red-100 flex items-center justify-between">
+          <div>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 mb-1">
+              <i class="fa-solid fa-clipboard-list"></i> Daily Farm Report
+            </span>
+            <h2 class="text-lg font-extrabold text-gray-900 leading-snug">Daily Mortality Entry</h2>
+            <p class="text-xs text-gray-500">Select farm group &amp; house, then record Dead &amp; Cull counts.</p>
+          </div>
+          <div class="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-md shadow-red-600/20 shrink-0">
+            <i class="fa-solid fa-feather-pointed text-lg"></i>
+          </div>
+        </div>
+
+        <form id="mortalityForm" onsubmit="handleMortalitySubmit(event)" class="p-5 space-y-5">
+          <!-- Step 1: Farm Group Selector (2x2 Grid) -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-2">
+              1. Select Farm Group <span class="text-red-600">*</span>
+            </label>
+            <div id="inputGroupGrid" class="grid grid-cols-2 gap-2.5">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Step 2: Quick-Tap House Pills with Day Age -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-xs font-bold uppercase tracking-wider text-gray-600">
+                2. Select House <span class="text-red-600">*</span>
+              </label>
+              <span id="selectedHouseIntakeTag" class="text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                Intake: 0 birds
+              </span>
+            </div>
+            <div id="inputHousePills" class="flex flex-wrap gap-2">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Step 3: Date & Time -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="entryDate" class="block text-xs font-bold text-gray-700 mb-1.5">
+                <i class="fa-regular fa-calendar text-red-500 mr-1"></i> Date <span class="text-red-600">*</span>
+              </label>
+              <input
+                type="date"
+                id="entryDate"
+                required
+                onchange="refreshHouseAgePreview()"
+                class="w-full rounded-2xl border border-gray-200 bg-gray-50/70 px-3.5 py-3 text-sm font-semibold text-gray-800 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition"
+              />
+            </div>
+            <div>
+              <label for="entryTime" class="block text-xs font-bold text-gray-700 mb-1.5">
+                <i class="fa-regular fa-clock text-red-500 mr-1"></i> Time <span class="text-red-600">*</span>
+              </label>
+              <input
+                type="time"
+                id="entryTime"
+                required
+                class="w-full rounded-2xl border border-gray-200 bg-gray-50/70 px-3.5 py-3 text-sm font-semibold text-gray-800 focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none transition"
+              />
+            </div>
+          </div>
+
+          <!-- Calculated Batch Age Pill -->
+          <div class="bg-rose-50/80 border border-red-100 rounded-2xl px-4 py-2.5 flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-600">Calculated Flock Age:</span>
+            <span id="calculatedAgeBadge" class="text-xs font-extrabold text-red-700 bg-white px-3 py-1 rounded-full border border-red-200 shadow-xs">
+              Day 1 / 60 Days
+            </span>
+          </div>
+
+          <!-- Step 4: Total Dead & Total Cull Counters -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Total Dead Card -->
+            <div class="rounded-2xl border-2 border-red-100 bg-red-50/40 p-3.5">
+              <label for="inputDead" class="block text-xs font-extrabold text-red-700 uppercase tracking-wide mb-2 text-center">
+                Total Dead
+              </label>
+              <div class="flex items-center justify-between gap-1.5">
+                <button
+                  type="button"
+                  onclick="adjustCounter('inputDead', -1)"
+                  class="w-10 h-10 rounded-xl bg-white border border-red-200 text-red-600 font-extrabold text-lg flex items-center justify-center active:scale-90 shadow-xs"
+                >−</button>
+                <input
+                  type="number"
+                  id="inputDead"
+                  min="0"
+                  inputmode="numeric"
+                  value="0"
+                  oninput="updateEntryTotalPreview()"
+                  class="w-full text-center bg-white border border-red-200 rounded-xl py-2 text-lg font-extrabold text-gray-900 focus:border-red-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onclick="adjustCounter('inputDead', 1)"
+                  class="w-10 h-10 rounded-xl bg-red-600 text-white font-extrabold text-lg flex items-center justify-center active:scale-90 shadow-xs"
+                >+</button>
+              </div>
+            </div>
+
+            <!-- Total Cull Card -->
+            <div class="rounded-2xl border-2 border-amber-100 bg-amber-50/40 p-3.5">
+              <label for="inputCull" class="block text-xs font-extrabold text-amber-800 uppercase tracking-wide mb-2 text-center">
+                Total Cull
+              </label>
+              <div class="flex items-center justify-between gap-1.5">
+                <button
+                  type="button"
+                  onclick="adjustCounter('inputCull', -1)"
+                  class="w-10 h-10 rounded-xl bg-white border border-amber-200 text-amber-700 font-extrabold text-lg flex items-center justify-center active:scale-90 shadow-xs"
+                >−</button>
+                <input
+                  type="number"
+                  id="inputCull"
+                  min="0"
+                  inputmode="numeric"
+                  value="0"
+                  oninput="updateEntryTotalPreview()"
+                  class="w-full text-center bg-white border border-amber-200 rounded-xl py-2 text-lg font-extrabold text-gray-900 focus:border-amber-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onclick="adjustCounter('inputCull', 1)"
+                  class="w-10 h-10 rounded-xl bg-amber-500 text-white font-extrabold text-lg flex items-center justify-center active:scale-90 shadow-xs"
+                >+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Combined Total Summary Strip -->
+          <div class="rounded-2xl bg-gray-900 text-white px-4 py-3 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] text-gray-400 font-medium">Combined Daily Loss (Dead + Cull)</p>
+              <p id="entrySummarySubtext" class="text-xs font-semibold text-red-300">MIV 1 • House 1</p>
+            </div>
+            <div class="text-right">
+              <span id="entryTotalPreview" class="text-2xl font-extrabold text-white">0</span>
+              <span class="text-xs text-gray-400 ml-1">birds</span>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            class="w-full py-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-extrabold text-sm tracking-wide shadow-lg shadow-red-600/25 active:scale-[0.98] transition flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Submit Mortality &amp; Sync Dropbox</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- USER VIEW 2: MY LOGS (AMEND & DELETE REQUIRE PIN)       -->
+    <!-- ======================================================= -->
+    <section id="view-logs" class="hidden space-y-4 animate-pop">
+      <div class="bg-white rounded-3xl p-4 shadow-sm border border-red-100">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="text-base font-extrabold text-gray-900">Submitted Mortality Logs</h2>
+            <p class="text-xs text-gray-500">Amend or Delete requires Manager Security PIN.</p>
+          </div>
+          <span id="logsTotalCountBadge" class="px-3 py-1 rounded-full bg-red-50 text-red-700 text-xs font-extrabold border border-red-100">
+            0 Logs
+          </span>
+        </div>
+
+        <!-- Group Filter Pills -->
+        <div id="logsFilterPills" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Log Entries List -->
+      <div id="logsListContainer" class="space-y-3">
+        <!-- Populated dynamically -->
+      </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- USER VIEW 3: CYCLE SUMMARY (EXECUTIVE & 60-DAY HOUSES)  -->
+    <!-- ======================================================= -->
+    <section id="view-summary" class="hidden space-y-4 animate-pop">
+      <!-- Executive Overview Banner -->
+      <div class="rounded-3xl bg-gradient-to-br from-red-600 via-red-600 to-rose-700 text-white p-5 shadow-lg shadow-red-900/15">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-red-100">Executive Overview</span>
+            <h2 class="text-lg font-extrabold">Farm Mortality Summary</h2>
+          </div>
+          <div class="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center">
+            <i class="fa-solid fa-chart-pie text-base"></i>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2.5 mt-3">
+          <div class="bg-white/15 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+            <p class="text-[11px] text-red-100 font-medium">Total Intake</p>
+            <p id="execTotalIntake" class="text-base font-extrabold mt-0.5">0</p>
+          </div>
+          <div class="bg-white/15 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+            <p class="text-[11px] text-red-100 font-medium">Total Loss</p>
+            <p id="execTotalLoss" class="text-base font-extrabold mt-0.5">0</p>
+            <p id="execDeadCullSplit" class="text-[10px] text-red-100 mt-0.5">0D • 0C</p>
+          </div>
+          <div class="bg-white/15 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+            <p class="text-[11px] text-red-100 font-medium">Mortality %</p>
+            <p id="execMortalityPct" class="text-base font-extrabold mt-0.5">0.00%</p>
+            <p class="text-[10px] text-red-100 mt-0.5">vs Intake</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary By Group Cards -->
+      <div class="space-y-2.5">
+        <h3 class="text-xs font-extrabold uppercase tracking-wider text-gray-600 px-1">Summary by Farm Group</h3>
+        <div id="summaryGroupCards" class="grid grid-cols-1 gap-3">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Per-House 60-Day Breakdown Section -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-gray-600">Per-House Batch Breakdown</h3>
+        </div>
+        <!-- Group Filter Pills for House Breakdown -->
+        <div id="summaryFilterPills" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <!-- Populated dynamically -->
+        </div>
+        <div id="summaryHouseCards" class="space-y-3">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================= -->
+    <!-- ADMIN VIEW: FARM MANAGER CONTROL CENTER (AUTO-LOCKS)    -->
+    <!-- ======================================================= -->
+    <section id="view-admin" class="hidden space-y-4 animate-pop">
+      <!-- Admin Header Status & Instant Lock Button -->
+      <div class="bg-gray-900 text-white rounded-3xl p-4 shadow-md flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-red-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <h2 class="text-sm font-extrabold">Farm Manager Console</h2>
+            <p class="text-[11px] text-gray-400">Auto-locks when switching tabs or minimizing</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick="lockAdminNow()"
+          class="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-extrabold text-white flex items-center gap-1.5 active:scale-95 transition shrink-0"
+        >
+          <i class="fa-solid fa-lock"></i>
+          <span>Lock Now</span>
+        </button>
+      </div>
+
+      <!-- Admin Sub-Navigation Tabs -->
+      <div class="bg-white p-1.5 rounded-2xl border border-red-100 shadow-xs grid grid-cols-4 gap-1">
+        <button
+          id="adminTab-reports"
+          type="button"
+          onclick="switchAdminTab('reports')"
+          class="py-2 px-2 rounded-xl text-xs font-extrabold transition bg-red-600 text-white"
+        >Reports</button>
+        <button
+          id="adminTab-houses"
+          type="button"
+          onclick="switchAdminTab('houses')"
+          class="py-2 px-2 rounded-xl text-xs font-extrabold transition text-gray-600 hover:bg-red-50"
+        >Houses</button>
+        <button
+          id="adminTab-groups"
+          type="button"
+          onclick="switchAdminTab('groups')"
+          class="py-2 px-2 rounded-xl text-xs font-extrabold transition text-gray-600 hover:bg-red-50"
+        >Groups</button>
+        <button
+          id="adminTab-cycle"
+          type="button"
+          onclick="switchAdminTab('cycle')"
+          class="py-2 px-2 rounded-xl text-xs font-extrabold transition text-gray-600 hover:bg-red-50"
+        >Cycle</button>
+      </div>
+
+      <!-- ADMIN TAB 1: REPORTS -->
+      <div id="adminPane-reports" class="space-y-4">
+        <div class="bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-3">
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 mb-1">Farm Group</label>
+              <select
+                id="reportGroupSelect"
+                onchange="onReportGroupChange()"
+                class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold text-gray-800 outline-none focus:border-red-500"
+              ></select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 mb-1">House</label>
+              <select
+                id="reportHouseSelect"
+                onchange="renderAdminReportTable()"
+                class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold text-gray-800 outline-none focus:border-red-500"
+              ></select>
+            </div>
+          </div>
+
+          <!-- House Metadata Banner -->
+          <div id="reportHouseMeta" class="bg-rose-50/70 rounded-2xl p-3 border border-red-100 text-xs flex flex-wrap items-center justify-between gap-2">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- Export Buttons -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onclick="downloadReportCSV()"
+              class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition"
+            >
+              <i class="fa-solid fa-file-csv"></i>
+              <span>Download CSV</span>
+            </button>
+            <button
+              type="button"
+              onclick="copyReportSummary()"
+              class="py-2.5 px-3 rounded-xl bg-gray-800 hover:bg-gray-900 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition"
+            >
+              <i class="fa-solid fa-copy"></i>
+              <span>Copy Summary</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Daily Report Table -->
+        <div class="bg-white rounded-3xl border border-red-100 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-red-50 text-red-900 text-[10px] font-extrabold uppercase tracking-wider border-b border-red-100">
+                  <th class="py-3 px-2.5">Date</th>
+                  <th class="py-3 px-2">Age</th>
+                  <th class="py-3 px-2 text-right">Dead</th>
+                  <th class="py-3 px-2 text-right">Cull</th>
+                  <th class="py-3 px-2 text-right">Total</th>
+                  <th class="py-3 px-2 text-right">Run Tot</th>
+                  <th class="py-3 px-2.5 text-right">Mort %</th>
+                </tr>
+              </thead>
+              <tbody id="adminReportTableBody" class="divide-y divide-gray-100 text-xs">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN TAB 2: HOUSES -->
+      <div id="adminPane-houses" class="hidden space-y-4">
+        <div class="bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-3">
+          <h3 class="text-sm font-extrabold text-gray-900">Add / Update House Intake</h3>
+          <form onsubmit="handleSaveHouse(event)" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 mb-1">Farm Group</label>
+                <select id="houseFormGroup" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold"></select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 mb-1">House Number</label>
+                <input type="text" id="houseFormNumber" placeholder="e.g. 1 or H1" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 mb-1">Birds Intake</label>
+                <input type="number" id="houseFormIntake" min="1" placeholder="30000" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 mb-1">Intake Date</label>
+                <input type="date" id="houseFormDate" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 mb-1">Chick Supplier</label>
+              <input type="text" id="houseFormSupplier" placeholder="e.g. Leong Hup / Cobb" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold" />
+            </div>
+            <button type="submit" class="w-full py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold active:scale-95 transition">
+              Save House &amp; Sync Dropbox
+            </button>
+          </form>
+        </div>
+
+        <div id="adminHousesList" class="space-y-2.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- ADMIN TAB 3: GROUPS -->
+      <div id="adminPane-groups" class="hidden space-y-4">
+        <div class="bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-3">
+          <h3 class="text-sm font-extrabold text-gray-900">Add / Rename Farm Group</h3>
+          <form onsubmit="handleSaveGroup(event)" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 mb-1">Group ID (Unique)</label>
+                <input type="text" id="groupFormId" placeholder="e.g. MIV 5" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 mb-1">Display Name</label>
+                <input type="text" id="groupFormName" placeholder="e.g. MIV Farm 5" required class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs font-bold" />
+              </div>
+            </div>
+            <button type="submit" class="w-full py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-extrabold active:scale-95 transition">
+              Save Farm Group &amp; Sync Dropbox
+            </button>
+          </form>
+        </div>
+
+        <div id="adminGroupsList" class="space-y-2.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- ADMIN TAB 4: CYCLE & SECURITY PIN -->
+      <div id="adminPane-cycle" class="hidden space-y-4">
+        <!-- Per-Group Cycle Settings -->
+        <div class="bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-3">
+          <h3 class="text-sm font-extrabold text-gray-900">Batch Cycle Configuration</h3>
+          <p class="text-xs text-gray-500">Set Cycle Number, Batch Days, and Cycle Start Date per group.</p>
+          <div id="adminCycleGroupForms" class="space-y-3">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Manager Security PIN -->
+        <div class="bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-3">
+          <h3 class="text-sm font-extrabold text-gray-900">Manager Security PIN</h3>
+          <p class="text-xs text-gray-500">Required to unlock Farm Manager console, Amend logs, or Delete logs.</p>
+          <form onsubmit="handleUpdatePin(event)" class="flex gap-2">
+            <input
+              type="password"
+              id="newPinInput"
+              maxlength="8"
+              inputmode="numeric"
+              placeholder="New PIN (min 4 digits)"
+              required
+              class="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm font-extrabold tracking-widest"
+            />
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-gray-900 text-white text-xs font-extrabold active:scale-95 transition">
+              Update PIN
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================================= -->
+  <!-- ANDROID BOTTOM NAVIGATION BAR (USER MODE)                 -->
+  <!-- ========================================================= -->
+  <nav id="bottomNav" class="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-red-100 shadow-lg shadow-red-950/5 safe-bottom">
+    <div class="max-w-lg mx-auto grid grid-cols-3 gap-1 px-3 pt-2">
+      <button
+        id="nav-input"
+        type="button"
+        onclick="switchMainView('input')"
+        class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-red-600 bg-red-50 font-extrabold transition"
+      >
+        <i class="fa-solid fa-pen-to-square text-base mb-0.5"></i>
+        <span class="text-[11px]">Daily Input</span>
+      </button>
+      <button
+        id="nav-logs"
+        type="button"
+        onclick="switchMainView('logs')"
+        class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-gray-500 hover:text-red-600 font-bold transition"
+      >
+        <i class="fa-solid fa-list-check text-base mb-0.5"></i>
+        <span class="text-[11px]">My Logs</span>
+      </button>
+      <button
+        id="nav-summary"
+        type="button"
+        onclick="switchMainView('summary')"
+        class="flex flex-col items-center justify-center py-1.5 rounded-2xl text-gray-500 hover:text-red-600 font-bold transition"
+      >
+        <i class="fa-solid fa-chart-column text-base mb-0.5"></i>
+        <span class="text-[11px]">Cycle Summary</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========================================================= -->
+  <!-- MODAL 1: SECURITY PIN PROMPT (ADMIN / AMEND / DELETE)     -->
+  <!-- ========================================================= -->
+  <div id="pinModal" class="fixed inset-0 z-50 hidden bg-gray-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl border border-red-100 animate-pop">
+      <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3">
+        <i class="fa-solid fa-lock text-lg"></i>
+      </div>
+      <h3 id="pinModalTitle" class="text-base font-extrabold text-center text-gray-900">Enter Manager PIN</h3>
+      <p id="pinModalDesc" class="text-xs text-center text-gray-500 mt-1 mb-4">Security verification required.</p>
+      <form onsubmit="submitPinModal(event)" class="space-y-3">
+        <input
+          type="password"
+          id="pinModalInput"
+          inputmode="numeric"
+          maxlength="8"
+          placeholder="••••"
+          required
+          class="w-full text-center text-xl font-extrabold tracking-[0.4em] rounded-2xl border-2 border-gray-200 focus:border-red-500 py-3 outline-none"
+        />
+        <p id="pinErrorMsg" class="hidden text-xs text-center font-bold text-red-600">Incorrect PIN. Try again.</p>
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button type="button" onclick="closePinModal()" class="py-2.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-extrabold">Cancel</button>
+          <button type="submit" class="py-2.5 rounded-xl bg-red-600 text-white text-xs font-extrabold">Verify PIN</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL 2: AMEND MORTALITY LOG ENTRY                        -->
+  <!-- ========================================================= -->
+  <div id="amendModal" class="fixed inset-0 z-50 hidden bg-gray-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-red-100 animate-pop space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-extrabold text-gray-900">Amend Mortality Log</h3>
+          <p id="amendLogSubtitle" class="text-xs text-gray-500">MIV 1 • House 1</p>
+        </div>
+        <button type="button" onclick="closeAmendModal()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="submitAmendLog(event)" class="space-y-3">
+        <input type="hidden" id="amendLogId" />
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Date</label>
+            <input type="date" id="amendDate" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-bold" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">Time</label>
+            <input type="time" id="amendTime" required class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-bold" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-red-700 mb-1">Total Dead</label>
+            <input type="number" id="amendDead" min="0" required class="w-full rounded-xl border border-red-200 bg-red-50/40 px-3 py-2.5 text-sm font-extrabold" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-amber-800 mb-1">Total Cull</label>
+            <input type="number" id="amendCull" min="0" required class="w-full rounded-xl border border-amber-200 bg-amber-50/40 px-3 py-2.5 text-sm font-extrabold" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button type="button" onclick="closeAmendModal()" class="py-3 rounded-xl bg-gray-100 text-gray-700 text-xs font-extrabold">Cancel</button>
+          <button type="submit" class="py-3 rounded-xl bg-red-600 text-white text-xs font-extrabold">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODAL 3: DROPBOX CONTENT API V2 AUTO-SYNC CONFIGURATION   -->
+  <!-- ========================================================= -->
+  <div id="dropboxModal" class="fixed inset-0 z-50 hidden bg-gray-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl border border-red-100 animate-pop space-y-4 my-auto">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center">
+            <i class="fa-brands fa-dropbox text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-gray-900">Dropbox API v2 Auto-Sync</h3>
+            <p class="text-[11px] text-gray-500">Cloud path: <code class="font-bold text-blue-700">/data/mortality.json</code></p>
+          </div>
+        </div>
+        <button type="button" onclick="closeDropboxModal()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Connection Status Summary Box -->
+      <div id="dropboxModalStatusBox" class="rounded-2xl bg-blue-50/80 border border-blue-100 p-3 text-xs space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-gray-700">Sync Status:</span>
+          <span id="dbxModalStateBadge" class="font-extrabold text-blue-700">Not Configured</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-gray-700">Last Cloud Sync:</span>
+          <span id="dbxModalLastSync" class="text-gray-600 font-medium">Never</span>
+        </div>
+        <p id="dbxModalErrorDetail" class="hidden text-[11px] text-red-600 font-semibold pt-1"></p>
+      </div>
+
+      <form onsubmit="saveDropboxConfig(event)" class="space-y-3">
+        <!-- Recommended Permanent Refresh Token Section -->
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
+              <i class="fa-solid fa-infinity mr-1"></i> Permanent Auto-Sync (Recommended)
+            </span>
+            <span class="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Never Expires</span>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-700 mb-1">Dropbox Refresh Token</label>
+            <input
+              type="password"
+              id="dbxRefreshTokenInput"
+              placeholder="Paste permanent refresh_token..."
+              class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-blue-500"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-700 mb-1">App Key</label>
+              <input
+                type="text"
+                id="dbxAppKeyInput"
+                placeholder="Dropbox App Key"
+                class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-700 mb-1">App Secret</label>
+              <input
+                type="password"
+                id="dbxAppSecretInput"
+                placeholder="Dropbox App Secret"
+                class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Short-Lived Access Token Fallback -->
+        <div class="rounded-2xl border border-gray-200 bg-gray-50/60 p-3 space-y-2">
+          <span class="block text-[11px] font-extrabold uppercase tracking-wider text-gray-600">
+            Direct Access Token (Fallback / Temporary)
+          </span>
+          <input
+            type="password"
+            id="dbxAccessTokenInput"
+            placeholder="sl.B... (optional if Refresh Token is set)"
+            class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button
+          type="button"
+          onclick="forceSyncNow(true)"
+          class="py-2.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition"
+        >
+          <i class="fa-solid fa-cloud-arrow-down"></i>
+          <span>Force Pull Now</span>
+        </button>
+        <button
+          type="submit"
+          class="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition"
+        >
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Save &amp; Sync</span>
+        </button>
+      </div>
+    </form>
+
+    <!-- 1-Tap New Device Auto-Connect Link Generator -->
+    <div class="border-t border-gray-100 pt-3 space-y-2">
+      <p class="text-[11px] text-gray-500 leading-relaxed">
+        <strong>Installing on a new worker phone?</strong> Copy the Auto-Connect Link below and open it once on the new device to configure &amp; pull <code class="text-gray-700">/data/mortality.json</code> automatically:
+      </p>
+      <button
+        type="button"
+        onclick="copyNewDeviceSetupLink()"
+        class="w-full py-2.5 px-3 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-extrabold flex items-center justify-center gap-2 active:scale-95 transition"
+      >
+        <i class="fa-solid fa-link"></i>
+        <span>Copy New-Device Auto-Connect Link</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- TOAST NOTIFICATION BANNER                                 -->
+<!-- ========================================================= -->
+  <div id="toastBanner" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden max-w-[92vw] w-max">
+    <div id="toastInner" class="px-4 py-3 rounded-2xl shadow-xl text-xs font-extrabold text-white bg-gray-900 flex items-center gap-2">
+      <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+      <span id="toastText">Saved!</span>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- JAVASCRIPT APPLICATION LOGIC & DROPBOX API V2 ENGINE      -->
+  <!-- ========================================================= -->
+  <script>
+    /**
+     * =========================================================================
+     * 1. BUILT-IN PRE-CONFIGURED DROPBOX CREDENTIALS (GITHUB PAGES AUTO-SYNC)
+     * =========================================================================
+     * Paste your permanent Dropbox Refresh Token, App Key, and App Secret below
+     * BEFORE uploading index.html to GitHub Pages:
+     * https://mivfarmreport-collab.github.io/miv-mortality-v1.0/
+     *
+     * Every new phone or browser that opens the link will IMMEDIATELY connect
+     * and pull /data/mortality.json on boot with zero manual setup!
+     */
+    const DEFAULT_DROPBOX_APP_KEY = '';
+    const DEFAULT_DROPBOX_APP_SECRET = '';
+    const DEFAULT_DROPBOX_REFRESH_TOKEN = '';
+    const DEFAULT_DROPBOX_ACCESS_TOKEN = ''; // Optional fallback if not using refresh token
+
+    const DROPBOX_FILE_PATH = '/data/mortality.json';
+    const STORAGE_KEY_DATA = 'miv_mortality_app_data_v2';
+    const STORAGE_KEY_DBX = 'miv_dropbox_credentials_v2';
+    const AUTO_SYNC_INTERVAL_MS = 25000; // 25 seconds multi-device background sync poll
+
+    // =========================================================================
+    // 2. DATE & HELPER UTILITIES
+    // =========================================================================
+    function getTodayISO(offsetDays = 0) {
+      const d = new Date();
+      d.setDate(d.getDate() + offsetDays);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // =========================================================================
+    // 3. APPLICATION STATE (SYNCED WITH /data/mortality.json)
+    // =========================================================================
+    let appState = {
+      pin: '1234',
+      groups: [
+        { id: 'MIV 1', name: 'MIV Farm 1', cycleNumber: 1, batchDays: 60, cycleStartDate: getTodayISO(-12) },
+        { id: 'MIV 2', name: 'MIV Farm 2', cycleNumber: 1, batchDays: 60, cycleStartDate: getTodayISO(-10) },
+        { id: 'MIV 3', name: 'MIV Farm 3', cycleNumber: 1, batchDays: 60, cycleStartDate: getTodayISO(-8) },
+        { id: 'MIV 4', name: 'MIV Farm 4', cycleNumber: 1, batchDays: 60, cycleStartDate: getTodayISO(-5) }
+      ],
+      houses: [
+        { id: 'MIV 1__1', groupId: 'MIV 1', houseNumber: '1', intake: 30000, supplier: 'Cobb Malaysia', intakeDate: getTodayISO(-12) },
+        { id: 'MIV 1__2', groupId: 'MIV 1', houseNumber: '2', intake: 30000, supplier: 'Cobb Malaysia', intakeDate: getTodayISO(-12) },
+        { id: 'MIV 2__1', groupId: 'MIV 2', houseNumber: '1', intake: 28500, supplier: 'Leong Hup', intakeDate: getTodayISO(-10) },
+        { id: 'MIV 2__2', groupId: 'MIV 2', houseNumber: '2', intake: 28500, supplier: 'Leong Hup', intakeDate: getTodayISO(-10) },
+        { id: 'MIV 3__1', groupId: 'MIV 3', houseNumber: '1', intake: 32000, supplier: 'Ross Breeder', intakeDate: getTodayISO(-8) },
+        { id: 'MIV 4__1', groupId: 'MIV 4', houseNumber: '1', intake: 29000, supplier: 'Cobb Malaysia', intakeDate: getTodayISO(-5) }
+      ],
+      logs: [],
+      deletedLogIds: [],
+      updatedAt: null
+    };
+
+    let dbxConfig = {
+      appKey: DEFAULT_DROPBOX_APP_KEY,
+      appSecret: DEFAULT_DROPBOX_APP_SECRET,
+      refreshToken: DEFAULT_DROPBOX_REFRESH_TOKEN,
+      accessToken: DEFAULT_DROPBOX_ACCESS_TOKEN,
+      accessTokenExpiresAt: 0
+    };
+
+    let uiState = {
+      role: 'user', // 'user' | 'admin'
+      adminUnlocked: false,
+      activeUserView: 'input', // 'input' | 'logs' | 'summary'
+      activeAdminTab: 'reports', // 'reports' | 'houses' | 'groups' | 'cycle'
+      selectedInputGroupId: 'MIV 1',
+      selectedInputHouseId: 'MIV 1__1',
+      logsFilterGroup: 'ALL',
+      summaryFilterGroup: 'ALL',
+      pendingPinAction: null,
+      isSyncing: false,
+      pendingPush: false,
+      hasLocalCache: false,
+      lastSyncTimestamp: null,
+      lastSyncError: ''
+    };
+
+    function getCurrentTimeHHMM() {
+      const now = new Date();
+      return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function computeBatchDay(startDateStr, targetDateStr) {
+      if (!startDateStr || !targetDateStr) return 1;
+      const start = new Date(startDateStr + 'T00:00:00');
+      const target = new Date(targetDateStr + 'T00:00:00');
+      const diffDays = Math.floor((target - start) / (1000 * 60 * 60 * 24)) + 1;
+      return Math.max(1, diffDays);
+    }
+
+    function formatNumber(n) {
+      return Number(n || 0).toLocaleString('en-US');
+    }
+
+    function showToast(message, type = 'success') {
+      const banner = document.getElementById('toastBanner');
+      const icon = document.getElementById('toastIcon');
+      const text = document.getElementById('toastText');
+      text.textContent = message;
+
+      if (type === 'error') {
+        icon.className = 'fa-solid fa-circle-exclamation text-red-400';
+      } else if (type === 'info') {
+        icon.className = 'fa-solid fa-cloud-arrow-down text-sky-400';
+      } else {
+        icon.className = 'fa-solid fa-circle-check text-emerald-400';
+      }
+
+      banner.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 3200);
+    }
+
+    // ASCII-safe JSON encoder for Dropbox-API-Arg header (prevents CORS preflight errors)
+    function encodeDropboxApiArg(obj) {
+      return JSON.stringify(obj).replace(/[\u007f-\uffff]/g, (c) => {
+        return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4);
+      });
+    }
+
+    // Exponential backoff fetch wrapper for transient 429/5xx network throttling
+    async function fetchWithBackoff(url, options, maxRetries = 3) {
+      let attempt = 0;
+      while (true) {
+        try {
+          const response = await fetch(url, options);
+          if ((response.status === 429 || response.status >= 500) && attempt < maxRetries) {
+            const delayMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 250);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            attempt++;
+            continue;
+          }
+          return response;
+        } catch (networkErr) {
+          if (attempt >= maxRetries) throw networkErr;
+          const delayMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 250);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          attempt++;
+        }
+      }
+    }
+
+    // =========================================================================
+    // 4. CREDENTIAL BOOTSTRAP (URL HASH/QUERY -> LOCALSTORAGE -> DEFAULTS)
+    // =========================================================================
+    function bootstrapDropboxCredentials() {
+      // 1. Start with built-in hardcoded defaults (for GitHub Pages zero-config deployment)
+      let merged = {
+        appKey: (DEFAULT_DROPBOX_APP_KEY || '').trim(),
+        appSecret: (DEFAULT_DROPBOX_APP_SECRET || '').trim(),
+        refreshToken: (DEFAULT_DROPBOX_REFRESH_TOKEN || '').trim(),
+        accessToken: (DEFAULT_DROPBOX_ACCESS_TOKEN || '').trim(),
+        accessTokenExpiresAt: 0
+      };
+
+      // 2. Load any previously saved credentials on this device
+      try {
+        const savedRaw = localStorage.getItem(STORAGE_KEY_DBX);
+        if (savedRaw) {
+          const parsed = JSON.parse(savedRaw);
+          if (parsed.refreshToken) merged.refreshToken = parsed.refreshToken.trim();
+          if (parsed.appKey) merged.appKey = parsed.appKey.trim();
+          if (parsed.appSecret) merged.appSecret = parsed.appSecret.trim();
+          if (parsed.accessToken) merged.accessToken = parsed.accessToken.trim();
+          if (parsed.accessTokenExpiresAt) merged.accessTokenExpiresAt = parsed.accessTokenExpiresAt;
+        }
+      } catch (e) {
+        console.warn('Error reading saved Dropbox config:', e);
+      }
+
+      // 3. Check if opened via 1-Tap Team Device Auto-Connect URL hash (#dbx=...) or query (?dbx=...)
+      try {
+        const combinedSource = `${window.location.hash || ''}&${window.location.search || ''}`;
+        const match = combinedSource.match(/dbx=([A-Za-z0-9\-_]+)/);
+        if (match && match[1]) {
+          let b64 = match[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (b64.length % 4 !== 0) b64 += '=';
+          const jsonStr = decodeURIComponent(escape(atob(b64)));
+          const linkCfg = JSON.parse(jsonStr);
+          if (linkCfg.rk || linkCfg.rt) merged.refreshToken = (linkCfg.rk || linkCfg.rt).trim();
+          if (linkCfg.ak) merged.appKey = linkCfg.ak.trim();
+          if (linkCfg.as) merged.appSecret = linkCfg.as.trim();
+          if (linkCfg.at) merged.accessToken = linkCfg.at.trim();
+          merged.accessTokenExpiresAt = 0;
+
+          localStorage.setItem(STORAGE_KEY_DBX, JSON.stringify(merged));
+          // Clean hash/query from URL bar cleanly without reloading
+          history.replaceState(null, '', window.location.pathname);
+          showToast('Device auto-configured via Team Sync Link!', 'info');
+        }
+      } catch (err) {
+        console.warn('Invalid #dbx setup link:', err);
+      }
+
+      dbxConfig = merged;
+    }
+
+    function hasDropboxCredentials() {
+      // Supports Refresh Token + App Key (with or without App Secret for PKCE) or direct Access Token
+      const hasRefresh = Boolean(dbxConfig.refreshToken && dbxConfig.appKey);
+      const hasDirect = Boolean(dbxConfig.accessToken);
+      return hasRefresh || hasDirect;
+    }
+
+    // =========================================================================
+    // 5. DROPBOX OAUTH2 TOKEN REFRESH & NON-DESTRUCTIVE MULTI-DEVICE SYNC ENGINE
+    // =========================================================================
+    async function getValidDropboxAccessToken(forceRefresh = false) {
+      // If Refresh Token + App Key are configured, use OAuth2 Refresh flow (PKCE or App Secret)
+      if (dbxConfig.refreshToken && dbxConfig.appKey) {
+        const now = Date.now();
+        // Reuse cached short-lived access token if still valid (with 5-minute buffer)
+        if (!forceRefresh && dbxConfig.accessToken && dbxConfig.accessTokenExpiresAt > now + 300000) {
+          return dbxConfig.accessToken;
+        }
+
+        const params = new URLSearchParams();
+        params.append('grant_type', 'refresh_token');
+        params.append('refresh_token', dbxConfig.refreshToken);
+        params.append('client_id', dbxConfig.appKey);
+        if (dbxConfig.appSecret) {
+          params.append('client_secret', dbxConfig.appSecret);
+        }
+
+        const tokenRes = await fetchWithBackoff('https://api.dropboxapi.com/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString()
+        });
+
+        if (!tokenRes.ok) {
+          const errText = await tokenRes.text();
+          throw new Error(`OAuth2 Refresh Failed (${tokenRes.status}): ${errText}`);
+        }
+
+        const tokenData = await tokenRes.json();
+        dbxConfig.accessToken = tokenData.access_token;
+        const expiresInSec = Number(tokenData.expires_in || 14400);
+        dbxConfig.accessTokenExpiresAt = Date.now() + expiresInSec * 1000;
+        localStorage.setItem(STORAGE_KEY_DBX, JSON.stringify(dbxConfig));
+        return dbxConfig.accessToken;
+      }
+
+      // Otherwise fallback to direct Access Token
+      if (dbxConfig.accessToken) {
+        return dbxConfig.accessToken;
+      }
+
+      throw new Error('No Dropbox credentials configured.');
+    }
+
+    /**
+     * Non-destructive merge between local appState and remote /data/mortality.json:
+     * - Preserves new logs created on any device without overwriting offline entries
+     * - Respects explicit log deletions via deletedLogIds tombstones
+     * - Resolves edited logs using amendedAt / createdAt timestamps
+     * - Merges groups & houses cleanly across devices
+     */
+    function mergeRemoteAndLocalState(remote) {
+      if (!remote || typeof remote !== 'object') return false;
+
+      const localHasChanges = Boolean(uiState.pendingPush);
+      const remoteUpdated = remote.updatedAt ? Date.parse(remote.updatedAt) : 0;
+      const localUpdated = appState.updatedAt ? Date.parse(appState.updatedAt) : 0;
+      const remoteIsNewer = !uiState.hasLocalCache || remoteUpdated >= localUpdated;
+
+      // 1. Merge deletedLogIds tombstones (keep last 500)
+      const deletedSet = new Set([
+        ...(Array.isArray(appState.deletedLogIds) ? appState.deletedLogIds : []),
+        ...(Array.isArray(remote.deletedLogIds) ? remote.deletedLogIds : [])
+      ]);
+      appState.deletedLogIds = Array.from(deletedSet).slice(-500);
+
+      // 2. Merge PIN & Groups & Houses (prefer remote if remote is newer or this is a fresh device)
+      if (remote.pin && (remoteIsNewer || !uiState.hasLocalCache)) {
+        appState.pin = String(remote.pin);
+      }
+
+      if (Array.isArray(remote.groups) && remote.groups.length > 0) {
+        if (remoteIsNewer || !uiState.hasLocalCache) {
+          appState.groups = remote.groups;
+        } else {
+          const groupMap = new Map(remote.groups.map((g) => [g.id, g]));
+          appState.groups.forEach((g) => groupMap.set(g.id, g));
+          appState.groups = Array.from(groupMap.values());
+        }
+      }
+
+      if (Array.isArray(remote.houses)) {
+        if (remoteIsNewer || !uiState.hasLocalCache) {
+          appState.houses = remote.houses;
+        } else {
+          const houseMap = new Map(remote.houses.map((h) => [h.id, h]));
+          appState.houses.forEach((h) => houseMap.set(h.id, h));
+          appState.houses = Array.from(houseMap.values());
+        }
+      }
+
+      // 3. Non-destructive Log Merge by Log ID
+      const remoteLogs = Array.isArray(remote.logs) ? remote.logs : [];
+      const localLogs = Array.isArray(appState.logs) ? appState.logs : [];
+      const mergedLogMap = new Map();
+
+      remoteLogs.forEach((rLog) => {
+        if (rLog && rLog.id && !deletedSet.has(rLog.id)) {
+          mergedLogMap.set(rLog.id, rLog);
+        }
+      });
+
+      let localContributedNewOrEdited = false;
+      localLogs.forEach((lLog) => {
+        if (!lLog || !lLog.id || deletedSet.has(lLog.id)) return;
+        const existingRemote = mergedLogMap.get(lLog.id);
+        if (!existingRemote) {
+          // Local log not yet on Dropbox (e.g. recorded while offline)
+          mergedLogMap.set(lLog.id, lLog);
+          localContributedNewOrEdited = true;
+        } else {
+          const lMod = Date.parse(lLog.amendedAt || lLog.createdAt || 0);
+          const rMod = Date.parse(existingRemote.amendedAt || existingRemote.createdAt || 0);
+          if (lMod > rMod) {
+            mergedLogMap.set(lLog.id, lLog);
+            localContributedNewOrEdited = true;
+          }
+        }
+      });
+
+      appState.logs = Array.from(mergedLogMap.values()).sort((a, b) =>
+        `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)
+      );
+
+      if (remote.updatedAt && (!appState.updatedAt || remoteUpdated > localUpdated)) {
+        appState.updatedAt = remote.updatedAt;
+      }
+
+      uiState.hasLocalCache = true;
+
+      // Ensure selected input group/house still exist
+      if (!appState.groups.some((g) => g.id === uiState.selectedInputGroupId)) {
+        uiState.selectedInputGroupId = appState.groups[0]?.id || 'MIV 1';
+      }
+      const validHouses = appState.houses.filter((h) => h.groupId === uiState.selectedInputGroupId);
+      if (!validHouses.some((h) => h.id === uiState.selectedInputHouseId)) {
+        uiState.selectedInputHouseId = validHouses[0]?.id || '';
+      }
+
+      return localHasChanges || localContributedNewOrEdited;
+    }
+
+    /**
+     * Pulls /data/mortality.json from Dropbox Content API v2.
+     * - Performs non-destructive merge with local state
+     * - Automatically pushes back if local offline changes were merged
+     * - If 409 path/not_found: initializes /data/mortality.json on Dropbox automatically
+     */
+    async function pullFromDropbox(silent = true) {
+      if (!hasDropboxCredentials()) {
+        updateDropboxStatusUI('unconfigured');
+        return false;
+      }
+      if (uiState.isSyncing) return false;
+
+      uiState.isSyncing = true;
+      updateDropboxStatusUI('syncing');
+
+      try {
+        let token = await getValidDropboxAccessToken(false);
+
+        let res = await fetchWithBackoff('https://content.dropboxapi.com/2/files/download', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Dropbox-API-Arg': encodeDropboxApiArg({ path: DROPBOX_FILE_PATH })
+          }
+        });
+
+        // If 401 expired token and we have refresh credentials, force refresh and retry once
+        if (res.status === 401 && dbxConfig.refreshToken && dbxConfig.appKey) {
+          token = await getValidDropboxAccessToken(true);
+          res = await fetchWithBackoff('https://content.dropboxapi.com/2/files/download', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Dropbox-API-Arg': encodeDropboxApiArg({ path: DROPBOX_FILE_PATH })
+            }
+          });
+        }
+
+        if (res.status === 409) {
+          const errBody = await res.text();
+          if (errBody.includes('not_found')) {
+            // File does not exist yet on Dropbox -> create initial /data/mortality.json
+            uiState.isSyncing = false;
+            const pushed = await pushToDropbox(true);
+            if (pushed && !silent) showToast('Initialized /data/mortality.json on Dropbox');
+            return pushed;
+          }
+          throw new Error(`Dropbox 409 Conflict: ${errBody}`);
+        }
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Download failed (${res.status}): ${errText}`);
+        }
+
+        const remoteData = await res.json();
+        let needsPushBack = false;
+        if (remoteData && typeof remoteData === 'object') {
+          needsPushBack = mergeRemoteAndLocalState(remoteData);
+          saveLocalStateOnly();
+          renderAllViews();
+        }
+
+        uiState.lastSyncTimestamp = new Date();
+        uiState.lastSyncError = '';
+        uiState.isSyncing = false;
+
+        if (needsPushBack) {
+          await pushToDropbox(true);
+        } else {
+          uiState.pendingPush = false;
+          updateDropboxStatusUI('connected');
+        }
+
+        if (!silent) showToast('Synced latest data from Dropbox');
+        return true;
+      } catch (err) {
+        console.error('Dropbox pull error:', err);
+        uiState.lastSyncError = err.message || 'Sync error';
+        uiState.isSyncing = false;
+        updateDropboxStatusUI('error');
+        if (!silent) showToast('Dropbox sync failed — check credentials', 'error');
+        return false;
+      }
+    }
+
+    /**
+     * Uploads current appState to /data/mortality.json on Dropbox Content API v2.
+     */
+    async function pushToDropbox(silent = true) {
+      appState.updatedAt = new Date().toISOString();
+      uiState.pendingPush = true;
+      uiState.hasLocalCache = true;
+      saveLocalStateOnly();
+
+      if (!hasDropboxCredentials()) {
+        updateDropboxStatusUI('unconfigured');
+        return false;
+      }
+
+      if (uiState.isSyncing) return false;
+      uiState.isSyncing = true;
+      updateDropboxStatusUI('syncing');
+
+      try {
+        let token = await getValidDropboxAccessToken(false);
+        const payload = JSON.stringify(appState, null, 2);
+
+        let res = await fetchWithBackoff('https://content.dropboxapi.com/2/files/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/octet-stream',
+            'Dropbox-API-Arg': encodeDropboxApiArg({
+              path: DROPBOX_FILE_PATH,
+              mode: 'overwrite',
+              autorename: false,
+              mute: true
+            })
+          },
+          body: payload
+        });
+
+        if (res.status === 401 && dbxConfig.refreshToken && dbxConfig.appKey) {
+          token = await getValidDropboxAccessToken(true);
+          res = await fetchWithBackoff('https://content.dropboxapi.com/2/files/upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/octet-stream',
+              'Dropbox-API-Arg': encodeDropboxApiArg({
+                path: DROPBOX_FILE_PATH,
+                mode: 'overwrite',
+                autorename: false,
+                mute: true
+              })
+            },
+            body: payload
+          });
+        }
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Upload failed (${res.status}): ${errText}`);
+        }
+
+        uiState.lastSyncTimestamp = new Date();
+        uiState.lastSyncError = '';
+        uiState.pendingPush = false;
+        uiState.isSyncing = false;
+        updateDropboxStatusUI('connected');
+        if (!silent) showToast('Uploaded to Dropbox /data/mortality.json');
+        return true;
+      } catch (err) {
+        console.error('Dropbox push error:', err);
+        uiState.lastSyncError = err.message || 'Upload error';
+        uiState.isSyncing = false;
+        updateDropboxStatusUI('error');
+        if (!silent) showToast('Saved locally, Dropbox upload failed', 'error');
+        return false;
+      }
+    }
+
+    async function forceSyncNow(manual = true) {
+      if (!hasDropboxCredentials()) {
+        openDropboxModal();
+        showToast('Enter Dropbox credentials first', 'info');
+        return;
+      }
+      await pullFromDropbox(!manual);
+    }
+
+    function saveLocalStateOnly() {
+      try {
+        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(appState));
+      } catch (e) {
+        console.warn('LocalStorage save failed:', e);
+      }
+    }
+
+    function loadLocalState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_DATA);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            if (parsed.pin) appState.pin = String(parsed.pin);
+            if (Array.isArray(parsed.groups) && parsed.groups.length > 0) appState.groups = parsed.groups;
+            if (Array.isArray(parsed.houses)) appState.houses = parsed.houses;
+            if (Array.isArray(parsed.logs)) appState.logs = parsed.logs;
+            if (Array.isArray(parsed.deletedLogIds)) appState.deletedLogIds = parsed.deletedLogIds;
+            if (parsed.updatedAt) appState.updatedAt = parsed.updatedAt;
+            uiState.hasLocalCache = true;
+          }
+        }
+      } catch (e) {
+        console.warn('LocalStorage load failed:', e);
+      }
+    }
+
+    function updateDropboxStatusUI(status) {
+      const dot = document.getElementById('dropboxDot');
+      const text = document.getElementById('dropboxStatusText');
+      const icon = document.getElementById('forceSyncIcon');
+      const modalBadge = document.getElementById('dbxModalStateBadge');
+      const modalLast = document.getElementById('dbxModalLastSync');
+      const modalErr = document.getElementById('dbxModalErrorDetail');
+
+      if (status === 'syncing') {
+        dot.className = 'w-2 h-2 rounded-full bg-sky-300 animate-ping';
+        text.textContent = 'Syncing...';
+        icon.classList.add('fa-spin');
+        if (modalBadge) {
+          modalBadge.textContent = 'Syncing with Dropbox...';
+          modalBadge.className = 'font-extrabold text-blue-600';
+        }
+      } else if (status === 'connected') {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        text.textContent = 'Synced';
+        icon.classList.remove('fa-spin');
+        if (modalBadge) {
+          modalBadge.textContent = 'Connected & Auto-Syncing';
+          modalBadge.className = 'font-extrabold text-emerald-600';
+        }
+        if (modalErr) modalErr.classList.add('hidden');
+      } else if (status === 'error') {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-300';
+        text.textContent = 'Sync Err';
+        icon.classList.remove('fa-spin');
+        if (modalBadge) {
+          modalBadge.textContent = 'Sync Error';
+          modalBadge.className = 'font-extrabold text-red-600';
+        }
+        if (modalErr && uiState.lastSyncError) {
+          modalErr.textContent = uiState.lastSyncError;
+          modalErr.classList.remove('hidden');
+        }
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-gray-300';
+        text.textContent = 'Offline';
+        icon.classList.remove('fa-spin');
+        if (modalBadge) {
+          modalBadge.textContent = 'Not Configured (Local Only)';
+          modalBadge.className = 'font-extrabold text-gray-600';
+        }
+      }
+
+      if (modalLast && uiState.lastSyncTimestamp) {
+        modalLast.textContent = uiState.lastSyncTimestamp.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+      }
+    }
+
+    // =========================================================================
+    // 6. DROPBOX MODAL & 1-TAP TEAM SETUP LINK GENERATOR
+    // =========================================================================
+    function openDropboxModal() {
+      document.getElementById('dbxRefreshTokenInput').value = dbxConfig.refreshToken || '';
+      document.getElementById('dbxAppKeyInput').value = dbxConfig.appKey || '';
+      document.getElementById('dbxAppSecretInput').value = dbxConfig.appSecret || '';
+      document.getElementById('dbxAccessTokenInput').value = dbxConfig.accessToken || '';
+      updateDropboxStatusUI(
+        uiState.isSyncing ? 'syncing' : hasDropboxCredentials() ? (uiState.lastSyncError ? 'error' : 'connected') : 'unconfigured'
+      );
+      document.getElementById('dropboxModal').classList.remove('hidden');
+    }
+
+    function closeDropboxModal() {
+      document.getElementById('dropboxModal').classList.add('hidden');
+    }
+
+    async function saveDropboxConfig(e) {
+      e.preventDefault();
+      dbxConfig.refreshToken = document.getElementById('dbxRefreshTokenInput').value.trim();
+      dbxConfig.appKey = document.getElementById('dbxAppKeyInput').value.trim();
+      dbxConfig.appSecret = document.getElementById('dbxAppSecretInput').value.trim();
+      dbxConfig.accessToken = document.getElementById('dbxAccessTokenInput').value.trim();
+      dbxConfig.accessTokenExpiresAt = 0;
+
+      localStorage.setItem(STORAGE_KEY_DBX, JSON.stringify(dbxConfig));
+      closeDropboxModal();
+      await pullFromDropbox(false);
+    }
+
+    function copyNewDeviceSetupLink() {
+      const rk = document.getElementById('dbxRefreshTokenInput').value.trim() || dbxConfig.refreshToken;
+      const ak = document.getElementById('dbxAppKeyInput').value.trim() || dbxConfig.appKey;
+      const as = document.getElementById('dbxAppSecretInput').value.trim() || dbxConfig.appSecret;
+      const at = document.getElementById('dbxAccessTokenInput').value.trim() || dbxConfig.accessToken;
+
+      if (!rk && !at) {
+        showToast('Enter Refresh Token or Access Token first', 'error');
+        return;
+      }
+
+      const payload = {};
+      if (rk) payload.rk = rk;
+      if (ak) payload.ak = ak;
+      if (as) payload.as = as;
+      if (!rk && at) payload.at = at;
+
+      const jsonStr = JSON.stringify(payload);
+      const b64 = btoa(unescape(encodeURIComponent(jsonStr)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      const baseUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseUrl}#dbx=${b64}`;
+
+      copyTextToClipboard(shareUrl, 'New-Device Auto-Connect Link copied!');
+    }
+
+    function copyTextToClipboard(text, successMsg) {
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      temp.style.position = 'fixed';
+      temp.style.opacity = '0';
+      document.body.appendChild(temp);
+      temp.focus();
+      temp.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (e) {
+        showToast('Unable to copy automatically', 'error');
+      }
+      document.body.removeChild(temp);
+    }
+
+    // =========================================================================
+    // 7. ROLE SWITCHING, PIN VERIFICATION & AUTO-LOCK SECURITY
+    // =========================================================================
+    function switchRole(role) {
+      if (role === 'user') {
+        // Auto-lock Admin whenever returning to Farm Worker mode
+        uiState.adminUnlocked = false;
+        uiState.role = 'user';
+        document.getElementById('view-admin').classList.add('hidden');
+        document.getElementById('bottomNav').classList.remove('hidden');
+
+        document.getElementById('roleUserBtn').className =
+          'py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-white text-red-600 shadow-sm';
+        document.getElementById('roleAdminBtn').className =
+          'py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition text-red-100 hover:text-white';
+        document.getElementById('adminRoleLockIcon').className = 'fa-solid fa-lock';
+
+        switchMainView(uiState.activeUserView);
+      }
+    }
+
+    function requestAdminMode() {
+      if (uiState.role === 'admin' && uiState.adminUnlocked) return;
+      openPinModal('Farm Manager Unlock', 'Enter security PIN to open Admin Console.', () => {
+        uiState.adminUnlocked = true;
+        uiState.role = 'admin';
+
+        document.getElementById('view-input').classList.add('hidden');
+        document.getElementById('view-logs').classList.add('hidden');
+        document.getElementById('view-summary').classList.add('hidden');
+        document.getElementById('bottomNav').classList.add('hidden');
+        document.getElementById('view-admin').classList.remove('hidden');
+
+        document.getElementById('roleAdminBtn').className =
+          'py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-white text-red-600 shadow-sm';
+        document.getElementById('roleUserBtn').className =
+          'py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition text-red-100 hover:text-white';
+        document.getElementById('adminRoleLockIcon').className = 'fa-solid fa-lock-open';
+
+        switchAdminTab(uiState.activeAdminTab);
+      });
+    }
+
+    function lockAdminNow() {
+      switchRole('user');
+      showToast('Farm Manager Console locked', 'info');
+    }
+
+    function openPinModal(title, desc, onSuccessCallback) {
+      uiState.pendingPinAction = onSuccessCallback;
+      document.getElementById('pinModalTitle').textContent = title;
+      document.getElementById('pinModalDesc').textContent = desc;
+      document.getElementById('pinModalInput').value = '';
+      document.getElementById('pinErrorMsg').classList.add('hidden');
+      document.getElementById('pinModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('pinModalInput').focus(), 80);
+    }
+
+    function closePinModal() {
+      document.getElementById('pinModal').classList.add('hidden');
+      uiState.pendingPinAction = null;
+    }
+
+    function submitPinModal(e) {
+      e.preventDefault();
+      const entered = document.getElementById('pinModalInput').value.trim();
+      if (entered === String(appState.pin)) {
+        const callback = uiState.pendingPinAction;
+        closePinModal();
+        if (typeof callback === 'function') callback();
+      } else {
+        document.getElementById('pinErrorMsg').classList.remove('hidden');
+        document.getElementById('pinModalInput').value = '';
+        document.getElementById('pinModalInput').focus();
+      }
+    }
+
+    // =========================================================================
+    // 8. USER VIEW NAVIGATION & DAILY INPUT FORM LOGIC
+    // =========================================================================
+    function switchMainView(viewName) {
+      // Auto-lock Admin if user switches tabs
+      if (uiState.role === 'admin') {
+        uiState.adminUnlocked = false;
+        uiState.role = 'user';
+        document.getElementById('view-admin').classList.add('hidden');
+        document.getElementById('bottomNav').classList.remove('hidden');
+        document.getElementById('roleUserBtn').className =
+          'py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-white text-red-600 shadow-sm';
+        document.getElementById('roleAdminBtn').className =
+          'py-1.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition text-red-100 hover:text-white';
+        document.getElementById('adminRoleLockIcon').className = 'fa-solid fa-lock';
+      }
+
+      uiState.activeUserView = viewName;
+      ['input', 'logs', 'summary'].forEach((v) => {
+        const section = document.getElementById(`view-${v}`);
+        const navBtn = document.getElementById(`nav-${v}`);
+        if (v === viewName) {
+          section.classList.remove('hidden');
+          navBtn.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl text-red-600 bg-red-50 font-extrabold transition';
+        } else {
+          section.classList.add('hidden');
+          navBtn.className = 'flex flex-col items-center justify-center py-1.5 rounded-2xl text-gray-500 hover:text-red-600 font-bold transition';
+        }
+      });
+
+      if (viewName === 'logs') renderLogsView();
+      if (viewName === 'summary') renderSummaryView();
+    }
+
+    function renderInputView() {
+      const groupGrid = document.getElementById('inputGroupGrid');
+      groupGrid.innerHTML = '';
+
+      appState.groups.forEach((grp) => {
+        const isSelected = grp.id === uiState.selectedInputGroupId;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => {
+          uiState.selectedInputGroupId = grp.id;
+          const housesInGroup = appState.houses.filter((h) => h.groupId === grp.id);
+          uiState.selectedInputHouseId = housesInGroup[0]?.id || '';
+          renderInputView();
+        };
+        btn.className = isSelected
+          ? 'p-3 rounded-2xl border-2 border-red-600 bg-red-50 text-left transition shadow-xs'
+          : 'p-3 rounded-2xl border border-gray-200 bg-gray-50/70 hover:bg-red-50/40 text-left transition';
+        btn.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold ${isSelected ? 'text-red-700' : 'text-gray-800'}">${grp.id}</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isSelected ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-600'}">C${grp.cycleNumber}</span>
+          </div>
+          <p class="text-[11px] ${isSelected ? 'text-red-600 font-semibold' : 'text-gray-500'} truncate mt-0.5">${grp.name}</p>
+        `;
+        groupGrid.appendChild(btn);
+      });
+
+      // Render Houses Pills
+      const housePills = document.getElementById('inputHousePills');
+      housePills.innerHTML = '';
+      const houses = appState.houses.filter((h) => h.groupId === uiState.selectedInputGroupId);
+      const entryDateVal = document.getElementById('entryDate').value || getTodayISO();
+      const activeGroup = appState.groups.find((g) => g.id === uiState.selectedInputGroupId);
+
+      if (houses.length === 0) {
+        housePills.innerHTML = `<p class="text-xs text-gray-500 italic">No houses configured for ${uiState.selectedInputGroupId}. Add in Admin → Houses.</p>`;
+      } else {
+        if (!houses.some((h) => h.id === uiState.selectedInputHouseId)) {
+          uiState.selectedInputHouseId = houses[0].id;
+        }
+        houses.forEach((h) => {
+          const isSelected = h.id === uiState.selectedInputHouseId;
+          const startRef = h.intakeDate || activeGroup?.cycleStartDate || entryDateVal;
+          const dayAge = computeBatchDay(startRef, entryDateVal);
+
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          pill.onclick = () => {
+            uiState.selectedInputHouseId = h.id;
+            renderInputView();
+          };
+          pill.className = isSelected
+            ? 'px-3.5 py-2.5 rounded-2xl bg-red-600 text-white font-extrabold text-xs shadow-sm shadow-red-600/20 flex items-center gap-1.5 transition'
+            : 'px-3.5 py-2.5 rounded-2xl bg-gray-100 hover:bg-red-50 text-gray-700 font-bold text-xs flex items-center gap-1.5 transition';
+          pill.innerHTML = `
+            <span>House ${h.houseNumber}</span>
+            <span class="px-1.5 py-0.5 rounded-lg text-[10px] ${isSelected ? 'bg-white/20 text-white' : 'bg-white text-red-600'}">Day ${dayAge}</span>
+          `;
+          housePills.appendChild(pill);
+        });
+      }
+
+      refreshHouseAgePreview();
+      updateEntryTotalPreview();
+      updateHeaderMetadata();
+    }
+
+    function refreshHouseAgePreview() {
+      const activeGroup = appState.groups.find((g) => g.id === uiState.selectedInputGroupId);
+      const activeHouse = appState.houses.find((h) => h.id === uiState.selectedInputHouseId);
+      const entryDateVal = document.getElementById('entryDate').value || getTodayISO();
+
+      const intakeTag = document.getElementById('selectedHouseIntakeTag');
+      intakeTag.textContent = `Intake: ${formatNumber(activeHouse?.intake || 0)} birds`;
+
+      const startRef = activeHouse?.intakeDate || activeGroup?.cycleStartDate || entryDateVal;
+      const dayAge = computeBatchDay(startRef, entryDateVal);
+      const maxDays = activeGroup?.batchDays || 60;
+      document.getElementById('calculatedAgeBadge').textContent = `Day ${dayAge} / ${maxDays} Days`;
+
+      const houseLabel = activeHouse ? `House ${activeHouse.houseNumber}` : 'No House';
+      document.getElementById('entrySummarySubtext').textContent = `${uiState.selectedInputGroupId} • ${houseLabel}`;
+    }
+
+    function adjustCounter(inputId, delta) {
+      const el = document.getElementById(inputId);
+      const current = parseInt(el.value || '0', 10) || 0;
+      el.value = Math.max(0, current + delta);
+      updateEntryTotalPreview();
+    }
+
+    function updateEntryTotalPreview() {
+      const dead = Math.max(0, parseInt(document.getElementById('inputDead').value || '0', 10) || 0);
+      const cull = Math.max(0, parseInt(document.getElementById('inputCull').value || '0', 10) || 0);
+      document.getElementById('entryTotalPreview').textContent = formatNumber(dead + cull);
+    }
+
+    async function handleMortalitySubmit(e) {
+      e.preventDefault();
+      const activeGroup = appState.groups.find((g) => g.id === uiState.selectedInputGroupId);
+      const activeHouse = appState.houses.find((h) => h.id === uiState.selectedInputHouseId);
+
+      if (!activeGroup || !activeHouse) {
+        showToast('Please select a valid group and house', 'error');
+        return;
+      }
+
+      const dateVal = document.getElementById('entryDate').value || getTodayISO();
+      const timeVal = document.getElementById('entryTime').value || getCurrentTimeHHMM();
+      const dead = Math.max(0, parseInt(document.getElementById('inputDead').value || '0', 10) || 0);
+      const cull = Math.max(0, parseInt(document.getElementById('inputCull').value || '0', 10) || 0);
+
+      if (dead === 0 && cull === 0) {
+        showToast('Enter at least 1 Dead or Cull bird', 'error');
+        return;
+      }
+
+      const startRef = activeHouse.intakeDate || activeGroup.cycleStartDate || dateVal;
+      const ageDays = computeBatchDay(startRef, dateVal);
+
+      const newLog = {
+        id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        groupId: activeGroup.id,
+        houseId: activeHouse.id,
+        houseNumber: activeHouse.houseNumber,
+        cycleNumber: activeGroup.cycleNumber,
+        date: dateVal,
+        time: timeVal,
+        age: ageDays,
+        dead,
+        cull,
+        total: dead + cull,
+        createdAt: new Date().toISOString()
+      };
+
+      appState.logs.unshift(newLog);
+      document.getElementById('inputDead').value = '0';
+      document.getElementById('inputCull').value = '0';
+      document.getElementById('entryTime').value = getCurrentTimeHHMM();
+      updateEntryTotalPreview();
+      updateHeaderMetadata();
+
+      showToast(`Recorded ${dead + cull} birds (${activeGroup.id} H${activeHouse.houseNumber})`);
+      await pushToDropbox(true);
+    }
+
+    function updateHeaderMetadata() {
+      const activeGroup = appState.groups.find((g) => g.id === uiState.selectedInputGroupId) || appState.groups[0];
+      if (activeGroup) {
+        document.getElementById('headerSubtitle').textContent =
+          `${activeGroup.id} • Cycle ${activeGroup.cycleNumber} (${activeGroup.batchDays}d)`;
+      }
+      document.getElementById('headerLogBadge').textContent = appState.logs.length;
+    }
+
+    // =========================================================================
+    // 9. MY LOGS VIEW (WITH PIN-PROTECTED AMEND & DELETE)
+    // =========================================================================
+    function renderLogsView() {
+      const filterContainer = document.getElementById('logsFilterPills');
+      filterContainer.innerHTML = '';
+
+      const filters = [{ id: 'ALL', label: 'All Groups' }, ...appState.groups.map((g) => ({ id: g.id, label: g.id }))];
+      filters.forEach((f) => {
+        const active = uiState.logsFilterGroup === f.id;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => {
+          uiState.logsFilterGroup = f.id;
+          renderLogsView();
+        };
+        btn.className = active
+          ? 'px-3.5 py-1.5 rounded-full bg-red-600 text-white text-xs font-extrabold shrink-0'
+          : 'px-3.5 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-red-50 text-xs font-bold shrink-0';
+        btn.textContent = f.label;
+        filterContainer.appendChild(btn);
+      });
+
+      const filtered = appState.logs
+        .filter((l) => uiState.logsFilterGroup === 'ALL' || l.groupId === uiState.logsFilterGroup)
+        .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+
+      document.getElementById('logsTotalCountBadge').textContent = `${filtered.length} Logs`;
+
+      const list = document.getElementById('logsListContainer');
+      list.innerHTML = '';
+
+      if (filtered.length === 0) {
+        list.innerHTML = `
+          <div class="bg-white rounded-3xl p-8 text-center border border-red-100">
+            <i class="fa-regular fa-folder-open text-3xl text-red-200 mb-2"></i>
+            <p class="text-sm font-bold text-gray-700">No mortality logs found</p>
+            <p class="text-xs text-gray-400 mt-1">Submitted entries will appear here and sync to Dropbox.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach((log) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-3';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[11px] font-extrabold">${log.groupId}</span>
+                <span class="px-2.5 py-0.5 rounded-full bg-rose-50 text-red-700 border border-red-200 text-[11px] font-extrabold">House ${log.houseNumber}</span>
+                <span class="text-[11px] font-bold text-gray-500">Day ${log.age}</span>
+              </div>
+              <p class="text-xs font-semibold text-gray-500 mt-1.5">
+                <i class="fa-regular fa-calendar mr-1 text-red-400"></i>${log.date} at ${log.time}
+              </p>
+            </div>
+            <div class="text-right">
+              <span class="text-xl font-extrabold text-gray-900">${formatNumber(log.total)}</span>
+              <p class="text-[10px] font-bold text-gray-400 uppercase">Total Loss</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 bg-gray-50 rounded-2xl p-2.5 text-xs">
+            <div class="flex items-center justify-between px-2">
+              <span class="text-gray-500 font-semibold">Dead:</span>
+              <span class="font-extrabold text-red-600">${formatNumber(log.dead)}</span>
+            </div>
+            <div class="flex items-center justify-between px-2 border-l border-gray-200">
+              <span class="text-gray-500 font-semibold">Cull:</span>
+              <span class="font-extrabold text-amber-700">${formatNumber(log.cull)}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
+            <button
+              type="button"
+              onclick="requestAmendLog('${log.id}')"
+              class="py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition"
+            >
+              <i class="fa-solid fa-pen"></i>
+              <span>Amend (PIN)</span>
+            </button>
+            <button
+              type="button"
+              onclick="requestDeleteLog('${log.id}')"
+              class="py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-extrabold flex items-center justify-center gap-1.5 active:scale-95 transition"
+            >
+              <i class="fa-solid fa-trash-can"></i>
+              <span>Delete (PIN)</span>
+            </button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function requestAmendLog(logId) {
+      const log = appState.logs.find((l) => l.id === logId);
+      if (!log) return;
+      openPinModal('Amend Entry Verification', 'Enter Manager PIN to edit this log.', () => {
+        document.getElementById('amendLogId').value = log.id;
+        document.getElementById('amendLogSubtitle').textContent = `${log.groupId} • House ${log.houseNumber} (Cycle ${log.cycleNumber})`;
+        document.getElementById('amendDate').value = log.date;
+        document.getElementById('amendTime').value = log.time;
+        document.getElementById('amendDead').value = log.dead;
+        document.getElementById('amendCull').value = log.cull;
+        document.getElementById('amendModal').classList.remove('hidden');
+      });
+    }
+
+    function closeAmendModal() {
+      document.getElementById('amendModal').classList.add('hidden');
+    }
+
+    async function submitAmendLog(e) {
+      e.preventDefault();
+      const id = document.getElementById('amendLogId').value;
+      const idx = appState.logs.findIndex((l) => l.id === id);
+      if (idx === -1) return;
+
+      const log = appState.logs[idx];
+      const newDate = document.getElementById('amendDate').value;
+      const newTime = document.getElementById('amendTime').value;
+      const newDead = Math.max(0, parseInt(document.getElementById('amendDead').value || '0', 10) || 0);
+      const newCull = Math.max(0, parseInt(document.getElementById('amendCull').value || '0', 10) || 0);
+
+      const grp = appState.groups.find((g) => g.id === log.groupId);
+      const house = appState.houses.find((h) => h.id === log.houseId);
+      const startRef = house?.intakeDate || grp?.cycleStartDate || newDate;
+
+      appState.logs[idx] = {
+        ...log,
+        date: newDate,
+        time: newTime,
+        age: computeBatchDay(startRef, newDate),
+        dead: newDead,
+        cull: newCull,
+        total: newDead + newCull,
+        amendedAt: new Date().toISOString()
+      };
+
+      closeAmendModal();
+      renderLogsView();
+      showToast('Mortality log updated');
+      await pushToDropbox(true);
+    }
+
+    function requestDeleteLog(logId) {
+      openPinModal('Delete Entry Verification', 'Enter Manager PIN to permanently delete this log.', async () => {
+        if (!Array.isArray(appState.deletedLogIds)) appState.deletedLogIds = [];
+        if (!appState.deletedLogIds.includes(logId)) {
+          appState.deletedLogIds.push(logId);
+        }
+        appState.logs = appState.logs.filter((l) => l.id !== logId);
+        renderLogsView();
+        updateHeaderMetadata();
+        showToast('Mortality log deleted', 'info');
+        await pushToDropbox(true);
+      });
+    }
+
+    // =========================================================================
+    // 10. CYCLE SUMMARY VIEW (EXECUTIVE OVERVIEW + GROUP + 60-DAY HOUSES)
+    // =========================================================================
+    function renderSummaryView() {
+      const totalIntake = appState.houses.reduce((sum, h) => sum + Number(h.intake || 0), 0);
+      const totalDead = appState.logs.reduce((sum, l) => sum + Number(l.dead || 0), 0);
+      const totalCull = appState.logs.reduce((sum, l) => sum + Number(l.cull || 0), 0);
+      const totalLoss = totalDead + totalCull;
+      const mortPct = totalIntake > 0 ? ((totalLoss / totalIntake) * 100).toFixed(2) : '0.00';
+
+      document.getElementById('execTotalIntake').textContent = formatNumber(totalIntake);
+      document.getElementById('execTotalLoss').textContent = formatNumber(totalLoss);
+      document.getElementById('execDeadCullSplit').textContent = `${formatNumber(totalDead)}D • ${formatNumber(totalCull)}C`;
+      document.getElementById('execMortalityPct').textContent = `${mortPct}%`;
+
+      // Group Summary Cards
+      const groupCardsEl = document.getElementById('summaryGroupCards');
+      groupCardsEl.innerHTML = '';
+
+      appState.groups.forEach((grp) => {
+        const grpHouses = appState.houses.filter((h) => h.groupId === grp.id);
+        const grpLogs = appState.logs.filter((l) => l.groupId === grp.id);
+        const gIntake = grpHouses.reduce((s, h) => s + Number(h.intake || 0), 0);
+        const gDead = grpLogs.reduce((s, l) => s + Number(l.dead || 0), 0);
+        const gCull = grpLogs.reduce((s, l) => s + Number(l.cull || 0), 0);
+        const gTotal = gDead + gCull;
+        const gPct = gIntake > 0 ? ((gTotal / gIntake) * 100).toFixed(2) : '0.00';
+        const currentDay = Math.min(grp.batchDays, computeBatchDay(grp.cycleStartDate, getTodayISO()));
+        const progressPct = Math.min(100, Math.round((currentDay / grp.batchDays) * 100));
+
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-2.5';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-extrabold text-gray-900">${grp.id}</span>
+                <span class="px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[10px] font-extrabold border border-red-100">Cycle ${grp.cycleNumber}</span>
+              </div>
+              <p class="text-xs text-gray-500">${grp.name} • ${grpHouses.length} Houses</p>
+            </div>
+            <div class="text-right">
+              <span class="text-base font-extrabold text-red-600">${gPct}%</span>
+              <p class="text-[10px] text-gray-400 font-semibold">${formatNumber(gTotal)} / ${formatNumber(gIntake)}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-semibold text-gray-600">
+            <span>Dead: <strong class="text-red-600">${formatNumber(gDead)}</strong> • Cull: <strong class="text-amber-700">${formatNumber(gCull)}</strong></span>
+            <span>Day ${currentDay} / ${grp.batchDays}d</span>
+          </div>
+
+          <div class="w-full h-2 rounded-full bg-red-100 overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-red-500 to-rose-600 rounded-full" style="width: ${progressPct}%"></div>
+          </div>
+        `;
+        groupCardsEl.appendChild(card);
+      });
+
+      // House Filter Pills
+      const filterPills = document.getElementById('summaryFilterPills');
+      filterPills.innerHTML = '';
+      const filters = [{ id: 'ALL', label: 'All Houses' }, ...appState.groups.map((g) => ({ id: g.id, label: g.id }))];
+      filters.forEach((f) => {
+        const active = uiState.summaryFilterGroup === f.id;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => {
+          uiState.summaryFilterGroup = f.id;
+          renderSummaryView();
+        };
+        btn.className = active
+          ? 'px-3.5 py-1.5 rounded-full bg-red-600 text-white text-xs font-extrabold shrink-0'
+          : 'px-3.5 py-1.5 rounded-full bg-white border border-red-100 text-gray-600 text-xs font-bold shrink-0';
+        btn.textContent = f.label;
+        filterPills.appendChild(btn);
+      });
+
+      // Per-House Breakdown Cards
+      const houseCardsEl = document.getElementById('summaryHouseCards');
+      houseCardsEl.innerHTML = '';
+
+      const housesToShow = appState.houses.filter(
+        (h) => uiState.summaryFilterGroup === 'ALL' || h.groupId === uiState.summaryFilterGroup
+      );
+
+      housesToShow.forEach((h) => {
+        const grp = appState.groups.find((g) => g.id === h.groupId);
+        const hLogs = appState.logs.filter((l) => l.houseId === h.id);
+        const hDead = hLogs.reduce((s, l) => s + Number(l.dead || 0), 0);
+        const hCull = hLogs.reduce((s, l) => s + Number(l.cull || 0), 0);
+        const hTotal = hDead + hCull;
+        const hPct = h.intake > 0 ? ((hTotal / h.intake) * 100).toFixed(2) : '0.00';
+        const remainingBirds = Math.max(0, Number(h.intake || 0) - hTotal);
+        const startRef = h.intakeDate || grp?.cycleStartDate || getTodayISO();
+        const batchDays = grp?.batchDays || 60;
+        const ageNow = Math.min(batchDays, computeBatchDay(startRef, getTodayISO()));
+
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-3xl p-4 border border-red-100 shadow-xs space-y-2';
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs font-extrabold text-red-600">${h.groupId}</span>
+              <h4 class="text-sm font-extrabold text-gray-900">House ${h.houseNumber} <span class="text-xs font-semibold text-gray-400">• Day ${ageNow}/${batchDays}</span></h4>
+              <p class="text-[11px] text-gray-500">Supplier: ${h.supplier || 'N/A'} • Intake: ${h.intakeDate || 'N/A'}</p>
+            </div>
+            <div class="text-right">
+              <span class="px-2.5 py-1 rounded-xl bg-red-50 text-red-700 font-extrabold text-xs border border-red-100">${hPct}%</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-gray-100 text-center text-[11px]">
+            <div>
+              <p class="text-gray-400">Intake</p>
+              <p class="font-extrabold text-gray-800">${formatNumber(h.intake)}</p>
+            </div>
+            <div>
+              <p class="text-gray-400">Dead</p>
+              <p class="font-extrabold text-red-600">${formatNumber(hDead)}</p>
+            </div>
+            <div>
+              <p class="text-gray-400">Cull</p>
+              <p class="font-extrabold text-amber-700">${formatNumber(hCull)}</p>
+            </div>
+            <div>
+              <p class="text-gray-400">Live Bal</p>
+              <p class="font-extrabold text-emerald-700">${formatNumber(remainingBirds)}</p>
+            </div>
+          </div>
+        `;
+        houseCardsEl.appendChild(card);
+      });
+    }
+
+    // =========================================================================
+    // 11. ADMIN CONSOLE (REPORTS, HOUSES, GROUPS, CYCLE & PIN)
+    // =========================================================================
+    function switchAdminTab(tabName) {
+      uiState.activeAdminTab = tabName;
+      ['reports', 'houses', 'groups', 'cycle'].forEach((t) => {
+        const btn = document.getElementById(`adminTab-${t}`);
+        const pane = document.getElementById(`adminPane-${t}`);
+        if (t === tabName) {
+          btn.className = 'py-2 px-2 rounded-xl text-xs font-extrabold transition bg-red-600 text-white';
+          pane.classList.remove('hidden');
+        } else {
+          btn.className = 'py-2 px-2 rounded-xl text-xs font-extrabold transition text-gray-600 hover:bg-red-50';
+          pane.classList.add('hidden');
+        }
+      });
+
+      if (tabName === 'reports') renderAdminReportsInit();
+      if (tabName === 'houses') renderAdminHousesTab();
+      if (tabName === 'groups') renderAdminGroupsTab();
+      if (tabName === 'cycle') renderAdminCycleTab();
+    }
+
+    function renderAdminReportsInit() {
+      const grpSel = document.getElementById('reportGroupSelect');
+      const prevGrp = grpSel.value;
+      grpSel.innerHTML = appState.groups
+        .map((g) => `<option value="${g.id}">${g.id} - ${g.name}</option>`)
+        .join('');
+      if (prevGrp && appState.groups.some((g) => g.id === prevGrp)) {
+        grpSel.value = prevGrp;
+      }
+      onReportGroupChange();
+    }
+
+    function onReportGroupChange() {
+      const grpId = document.getElementById('reportGroupSelect').value;
+      const houses = appState.houses.filter((h) => h.groupId === grpId);
+      const houseSel = document.getElementById('reportHouseSelect');
+      houseSel.innerHTML = houses.length
+        ? houses.map((h) => `<option value="${h.id}">House ${h.houseNumber}</option>`).join('')
+        : '<option value="">No houses</option>';
+      renderAdminReportTable();
+    }
+
+    function getCurrentReportRows() {
+      const houseId = document.getElementById('reportHouseSelect').value;
+      const house = appState.houses.find((h) => h.id === houseId);
+      if (!house) return { house: null, rows: [] };
+
+      const hLogs = appState.logs
+        .filter((l) => l.houseId === house.id)
+        .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+
+      // Aggregate by date
+      const byDate = {};
+      hLogs.forEach((l) => {
+        if (!byDate[l.date]) {
+          byDate[l.date] = { date: l.date, age: l.age, dead: 0, cull: 0, total: 0 };
+        }
+        byDate[l.date].dead += Number(l.dead || 0);
+        byDate[l.date].cull += Number(l.cull || 0);
+        byDate[l.date].total += Number(l.total || 0);
+      });
+
+      let runningTotal = 0;
+      const rows = Object.values(byDate)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((r) => {
+          runningTotal += r.total;
+          const mortPct = house.intake > 0 ? ((runningTotal / house.intake) * 100).toFixed(2) : '0.00';
+          return { ...r, runningTotal, mortPct };
+        });
+
+      return { house, rows };
+    }
+
+    function renderAdminReportTable() {
+      const { house, rows } = getCurrentReportRows();
+      const metaEl = document.getElementById('reportHouseMeta');
+      const tbody = document.getElementById('adminReportTableBody');
+
+      if (!house) {
+        metaEl.innerHTML = '<span class="text-gray-500">No house selected.</span>';
+        tbody.innerHTML = '';
+        return;
+      }
+
+      const finalRun = rows.length ? rows[rows.length - 1].runningTotal : 0;
+      const finalPct = house.intake > 0 ? ((finalRun / house.intake) * 100).toFixed(2) : '0.00';
+
+      metaEl.innerHTML = `
+        <div>
+          <span class="font-extrabold text-gray-800">${house.groupId} • House ${house.houseNumber}</span>
+          <span class="text-gray-500 ml-2">Intake: <strong>${formatNumber(house.intake)}</strong></span>
+        </div>
+        <div class="font-extrabold text-red-700">
+          Cum. Loss: ${formatNumber(finalRun)} (${finalPct}%)
+        </div>
+      `;
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400 font-semibold">No logs recorded for this house yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows
+        .map(
+          (r) => `
+          <tr class="hover:bg-rose-50/40">
+            <td class="py-2.5 px-2.5 font-semibold text-gray-800 whitespace-nowrap">${r.date}</td>
+            <td class="py-2.5 px-2 font-bold text-gray-600">D${r.age}</td>
+            <td class="py-2.5 px-2 text-right font-bold text-red-600">${r.dead}</td>
+            <td class="py-2.5 px-2 text-right font-bold text-amber-700">${r.cull}</td>
+            <td class="py-2.5 px-2 text-right font-extrabold text-gray-900">${r.total}</td>
+            <td class="py-2.5 px-2 text-right font-bold text-gray-700">${formatNumber(r.runningTotal)}</td>
+            <td class="py-2.5 px-2.5 text-right font-extrabold text-red-700">${r.mortPct}%</td>
+          </tr>
+        `
+        )
+        .join('');
+    }
+
+    function downloadReportCSV() {
+      const { house, rows } = getCurrentReportRows();
+      if (!house || rows.length === 0) {
+        showToast('No report rows to export', 'error');
+        return;
+      }
+      const headers = ['Group', 'House', 'Date', 'Age', 'Dead', 'Cull', 'Daily Total', 'Running Total', 'Mortality %'];
+      const csvLines = [
+        headers.join(','),
+        ...rows.map((r) =>
+          [house.groupId, house.houseNumber, r.date, r.age, r.dead, r.cull, r.total, r.runningTotal, `${r.mortPct}%`].join(',')
+        )
+      ];
+      const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MIV_Mortality_${house.groupId.replace(/\s+/g, '')}_House${house.houseNumber}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV report downloaded');
+    }
+
+    function copyReportSummary() {
+      const { house, rows } = getCurrentReportRows();
+      if (!house) return;
+      const latest = rows[rows.length - 1];
+      const summaryText = latest
+        ? `MIV Mortality Report | ${house.groupId} - House ${house.houseNumber}\nIntake: ${formatNumber(house.intake)} | Latest Date: ${latest.date} (Day ${latest.age})\nDaily Loss: ${latest.total} (${latest.dead}D, ${latest.cull}C)\nCumulative Loss: ${formatNumber(latest.runningTotal)} (${latest.mortPct}%)`
+        : `MIV Mortality Report | ${house.groupId} - House ${house.houseNumber}\nIntake: ${formatNumber(house.intake)} | No mortality logs yet.`;
+      copyTextToClipboard(summaryText, 'House summary copied to clipboard');
+    }
+
+    // ADMIN TAB 2: HOUSES
+    function renderAdminHousesTab() {
+      const sel = document.getElementById('houseFormGroup');
+      sel.innerHTML = appState.groups.map((g) => `<option value="${g.id}">${g.id} (${g.name})</option>`).join('');
+      if (!document.getElementById('houseFormDate').value) {
+        document.getElementById('houseFormDate').value = getTodayISO();
+      }
+
+      const list = document.getElementById('adminHousesList');
+      list.innerHTML = appState.houses
+        .map(
+          (h) => `
+          <div class="bg-white rounded-2xl p-3.5 border border-red-100 flex items-center justify-between gap-2">
+            <div>
+              <p class="text-xs font-extrabold text-gray-900">${h.groupId} • House ${h.houseNumber}</p>
+              <p class="text-[11px] text-gray-500">Intake: <strong>${formatNumber(h.intake)}</strong> • ${h.supplier || 'N/A'} • ${h.intakeDate || ''}</p>
+            </div>
+            <button
+              type="button"
+              onclick="editHouseIntoForm('${h.id}')"
+              class="px-3 py-1.5 rounded-xl bg-red-50 text-red-700 text-xs font-extrabold"
+            >Edit</button>
+          </div>
+        `
+        )
+        .join('');
+    }
+
+    function editHouseIntoForm(houseId) {
+      const h = appState.houses.find((item) => item.id === houseId);
+      if (!h) return;
+      document.getElementById('houseFormGroup').value = h.groupId;
+      document.getElementById('houseFormNumber').value = h.houseNumber;
+      document.getElementById('houseFormIntake').value = h.intake;
+      document.getElementById('houseFormDate').value = h.intakeDate || getTodayISO();
+      document.getElementById('houseFormSupplier').value = h.supplier || '';
+    }
+
+    async function handleSaveHouse(e) {
+      e.preventDefault();
+      const groupId = document.getElementById('houseFormGroup').value;
+      const houseNumber = document.getElementById('houseFormNumber').value.trim();
+      const intake = Math.max(1, parseInt(document.getElementById('houseFormIntake').value || '0', 10));
+      const intakeDate = document.getElementById('houseFormDate').value;
+      const supplier = document.getElementById('houseFormSupplier').value.trim();
+
+      const id = `${groupId}__${houseNumber}`;
+      const existingIdx = appState.houses.findIndex((h) => h.id === id);
+      const record = { id, groupId, houseNumber, intake, supplier, intakeDate };
+
+      if (existingIdx >= 0) {
+        appState.houses[existingIdx] = record;
+      } else {
+        appState.houses.push(record);
+      }
+
+      renderAdminHousesTab();
+      renderInputView();
+      showToast(`Saved ${groupId} House ${houseNumber}`);
+      await pushToDropbox(true);
+    }
+
+    // ADMIN TAB 3: GROUPS
+    function renderAdminGroupsTab() {
+      const list = document.getElementById('adminGroupsList');
+      list.innerHTML = appState.groups
+        .map(
+          (g) => `
+          <div class="bg-white rounded-2xl p-3.5 border border-red-100 flex items-center justify-between">
+            <div>
+              <p class="text-xs font-extrabold text-gray-900">${g.id}</p>
+              <p class="text-[11px] text-gray-500">${g.name} • Cycle ${g.cycleNumber} (${g.batchDays}d)</p>
+            </div>
+            <button
+              type="button"
+              onclick="editGroupIntoForm('${g.id}')"
+              class="px-3 py-1.5 rounded-xl bg-red-50 text-red-700 text-xs font-extrabold"
+            >Edit</button>
+          </div>
+        `
+        )
+        .join('');
+    }
+
+    function editGroupIntoForm(groupId) {
+      const g = appState.groups.find((item) => item.id === groupId);
+      if (!g) return;
+      document.getElementById('groupFormId').value = g.id;
+      document.getElementById('groupFormName').value = g.name;
+    }
+
+    async function handleSaveGroup(e) {
+      e.preventDefault();
+      const id = document.getElementById('groupFormId').value.trim();
+      const name = document.getElementById('groupFormName').value.trim();
+      const idx = appState.groups.findIndex((g) => g.id === id);
+
+      if (idx >= 0) {
+        appState.groups[idx].name = name;
+      } else {
+        appState.groups.push({
+          id,
+          name,
+          cycleNumber: 1,
+          batchDays: 60,
+          cycleStartDate: getTodayISO()
+        });
+      }
+
+      document.getElementById('groupFormId').value = '';
+      document.getElementById('groupFormName').value = '';
+      renderAdminGroupsTab();
+      renderInputView();
+      showToast(`Saved group ${id}`);
+      await pushToDropbox(true);
+    }
+
+    // ADMIN TAB 4: CYCLE & PIN
+    function renderAdminCycleTab() {
+      const container = document.getElementById('adminCycleGroupForms');
+      container.innerHTML = appState.groups
+        .map(
+          (g) => `
+          <div class="p-3.5 rounded-2xl bg-rose-50/50 border border-red-100 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold text-red-700">${g.id} — ${g.name}</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-gray-600 mb-1">Cycle #</label>
+                <input type="number" id="cycNum_${g.id}" value="${g.cycleNumber}" min="1" class="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-600 mb-1">Batch Days</label>
+                <input type="number" id="cycDays_${g.id}" value="${g.batchDays}" min="1" class="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-gray-600 mb-1">Start Date</label>
+                <input type="date" id="cycStart_${g.id}" value="${g.cycleStartDate}" class="w-full rounded-xl border border-gray-200 bg-white px-2 py-2 text-xs font-bold" />
+              </div>
+            </div>
+            <button
+              type="button"
+              onclick="saveGroupCycle('${g.id}')"
+              class="w-full py-2 rounded-xl bg-red-600 text-white text-xs font-extrabold active:scale-95 transition"
+            >Update ${g.id} Cycle</button>
+          </div>
+        `
+        )
+        .join('');
+    }
+
+    async function saveGroupCycle(groupId) {
+      const g = appState.groups.find((item) => item.id === groupId);
+      if (!g) return;
+      g.cycleNumber = Math.max(1, parseInt(document.getElementById(`cycNum_${groupId}`).value || '1', 10));
+      g.batchDays = Math.max(1, parseInt(document.getElementById(`cycDays_${groupId}`).value || '60', 10));
+      g.cycleStartDate = document.getElementById(`cycStart_${groupId}`).value || getTodayISO();
+
+      renderInputView();
+      showToast(`Updated ${groupId} Cycle ${g.cycleNumber}`);
+      await pushToDropbox(true);
+    }
+
+    async function handleUpdatePin(e) {
+      e.preventDefault();
+      const val = document.getElementById('newPinInput').value.trim();
+      if (val.length < 4) {
+        showToast('PIN must be at least 4 digits', 'error');
+        return;
+      }
+      appState.pin = val;
+      document.getElementById('newPinInput').value = '';
+      showToast('Security PIN updated & synced');
+      await pushToDropbox(true);
+    }
+
+    // =========================================================================
+    // 12. RENDER ALL & LIFECYCLE HOOKS (BOOT, RESUME, AUTO-LOCK, 30S POLLING)
+    // =========================================================================
+    function renderAllViews() {
+      renderInputView();
+      if (uiState.activeUserView === 'logs') renderLogsView();
+      if (uiState.activeUserView === 'summary') renderSummaryView();
+      if (uiState.role === 'admin' && uiState.adminUnlocked) {
+        switchAdminTab(uiState.activeAdminTab);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('entryDate').value = getTodayISO();
+      document.getElementById('entryTime').value = getCurrentTimeHHMM();
+
+      // 1. Load local cache first for instant zero-lag startup
+      loadLocalState();
+      renderAllViews();
+
+      // 2. Bootstrap Dropbox credentials (URL hash/query -> LocalStorage -> Built-in Defaults)
+      bootstrapDropboxCredentials();
+
+      // 3. Automatically hydrate /data/mortality.json from Dropbox on boot
+      if (hasDropboxCredentials()) {
+        await pullFromDropbox(true);
+      } else {
+        updateDropboxStatusUI('unconfigured');
+      }
+
+      // 4. Periodic 25-second background pull so all worker phones stay synchronized
+      setInterval(() => {
+        if (document.visibilityState === 'visible' && hasDropboxCredentials()) {
+          pullFromDropbox(true);
+        }
+      }, AUTO_SYNC_INTERVAL_MS);
+    });
+
+    // Auto-sync when browser reconnects online
+    window.addEventListener('online', () => {
+      if (hasDropboxCredentials()) {
+        pullFromDropbox(true);
+      }
+    });
+
+    // Auto-Lock Admin & Auto-Pull latest Dropbox data whenever app returns to foreground
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        if (uiState.role === 'admin' || uiState.adminUnlocked) {
+          switchRole('user');
+        }
+      } else if (document.visibilityState === 'visible') {
+        if (hasDropboxCredentials()) {
+          pullFromDropbox(true);
+        }
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      if (uiState.role === 'admin' || uiState.adminUnlocked) {
+        switchRole('user');
+      }
+    });
+  </script>
+</body>
+</html>
